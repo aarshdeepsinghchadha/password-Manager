@@ -7,8 +7,10 @@ namespace PasswordManager.Interfaces
     {
         Task<ReturnResponse> RegisterUserAsync(RegisterDto registerDto);
         Task<ReturnResponse> LoginUserAsync(LoginDto loginDto);
-        Task<ReturnResponse> RefreshToken(RefreshTokenDto refreshTokenDto);
-        Task<ReturnResponse> ForgotPassword(string email);
+        Task<ReturnResponse<RefreshResponseDto>> RefreshTokenAsync(RefreshTokenDto refreshTokenDto);
+        Task<ReturnResponse> VerifyEmailAsync(VerifyEmailDto verifyEmailDto);
+        Task<ReturnResponse> ForgotPasswordAsync(string email);
         Task<ReturnResponse> DeleteUserAsync(string userId);
+        Task<ReturnResponse<List<GetAllUserDto>>> GetAllUser(string authorizationToken);
     }
 }
