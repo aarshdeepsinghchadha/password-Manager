@@ -10,6 +10,7 @@ namespace PasswordManager.Interfaces
         Task<RefreshToken> SetRefreshToken(AppUser user, string token);
 
         Task<ReturnResponse<DecodeTokenDto>> DecodeToken(string token);
+        Task<ReturnResponse<DecodeTokenDto>> DecodeTokenForRefreshToken(string token);
         Task<ReturnResponse> GenerateToken(AppUser user);
     }
 }

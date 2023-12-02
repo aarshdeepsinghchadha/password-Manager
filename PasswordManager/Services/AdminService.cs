@@ -7,6 +7,7 @@ using PasswordManager.Common;
 using PasswordManager.Dto;
 using PasswordManager.Interfaces;
 using PasswordManager.Models;
+using System.Linq;
 using System.Text;
 
 namespace PasswordManager.Services
@@ -55,7 +56,7 @@ namespace PasswordManager.Services
                     var token = await _tokenService.GenerateLoginToken(user.UserName, loginDto.Password);
                     await _tokenService.SetRefreshToken(user, token);
                     return await _responseGeneratorService.GenerateResponseAsync(
-                        true, StatusCodes.Status200OK, "Login successful.");
+                        true, StatusCodes.Status200OK, "Login successful.", token);
                 }
                 else
                 {
@@ -181,7 +182,7 @@ namespace PasswordManager.Services
                 return await _responseGeneratorService.GenerateResponseAsync<RefreshResponseDto>(
                       false, StatusCodes.Status401Unauthorized, "Passed Token does not Exist", null);
             }
-            var decodeResponse = await _tokenService.DecodeToken(refreshTokenDto.OldToken);
+            var decodeResponse = await _tokenService.DecodeTokenForRefreshToken(refreshTokenDto.OldToken);
             if (decodeResponse.Data != null)
             {
                 if (decodeResponse.Data.Status)
@@ -269,7 +270,12 @@ namespace PasswordManager.Services
             try
             {
                 var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
-                if(!checkAuthorizationTokenIsValid.Data.Status)
+                if (!checkAuthorizationTokenIsValid.Status)
+                {
+                     return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
+                      false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
+                }
+                if (!checkAuthorizationTokenIsValid.Data.Status)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
                   false, StatusCodes.Status401Unauthorized, "InValid token", null);
@@ -286,15 +292,8 @@ namespace PasswordManager.Services
                     EmailConfirmed = user.EmailConfirmed
                 }).ToList();
 
-                ReturnResponse<List<GetAllUserDto>> response = new ReturnResponse<List<GetAllUserDto>>
-                {
-                    Status = true,
-                    StatusCode = StatusCodes.Status200OK,
-                    Message = "All Users",
-                    Data = userDtos
-                };
-
-                return response;
+                return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
+                  true, StatusCodes.Status200OK, "List of All Users", userDtos);
             }
             catch (Exception ex)
             {
