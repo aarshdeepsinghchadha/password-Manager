@@ -22,7 +22,7 @@ var connectionString = builder.Configuration.GetConnectionString("PasswordManage
 
 // Add services to the container.
 builder.Services.AddDbContext<DataContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
 
 // Add Identity
 builder.Services.AddIdentity<AppUser, IdentityRole>()
@@ -42,6 +42,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+// In ConfigureServices method
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+});
+
 // Explicitly add UserManager and SignInManager
 builder.Services.AddScoped<UserManager<AppUser>>();
 builder.Services.AddScoped<SignInManager<AppUser>>();

@@ -73,7 +73,7 @@ namespace PasswordManager.Services
                 }
 
                 // Expire all existing tokens for the user
-                ExpireExistingTokensAsync(user.Id);
+                await ExpireExistingTokensAsync(user.Id);
 
                 var expirationInMinutes = Convert.ToInt32(_configuration["Jwt:ExpirationInMinutes"]);
                 var expirationDateTime = DateTime.UtcNow.AddMinutes(expirationInMinutes);
@@ -102,25 +102,6 @@ namespace PasswordManager.Services
             }
         }
 
-        //private void ExpireExistingTokens(string appUserId)
-        //{
-        //    // Retrieve all tokens for the user from the database
-        //    var allTokens = _context.RefreshTokens
-        //        .Where(t => t.AppUserId == appUserId)
-        //        .ToList();
-
-        //    // Filter the tokens in-memory based on IsActive and Revoked
-        //    var tokensToExpire = allTokens
-        //        .Where(t => t.IsActive && t.Revoked == null)
-        //        .ToList();
-
-        //    foreach (var existingToken in tokensToExpire)
-        //    {
-        //        existingToken.Revoked = DateTime.UtcNow;
-        //    }
-
-        //    _context.SaveChanges();
-        //}
         private async Task ExpireExistingTokensAsync(string appUserId)
         {
             // Retrieve all tokens for the user from the database
@@ -244,7 +225,8 @@ namespace PasswordManager.Services
 
                 var response = new DecodeTokenDto
                 {
-                    Status = true
+                    Status = true,
+                    UserDetails = user
                 };
                 return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(true, StatusCodes.Status200OK, "ValidToken", response);
             }

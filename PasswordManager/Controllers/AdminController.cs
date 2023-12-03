@@ -6,6 +6,7 @@ using PasswordManager.Interfaces;
 
 namespace PasswordManager.Controllers
 {
+
     [ApiController]
     [Route("api/[controller]")]
     public class AdminController : ControllerBase
@@ -42,21 +43,38 @@ namespace PasswordManager.Controllers
         }
 
         [HttpPost("verifyEmail")]
-        public async Task<IActionResult> verifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
         {
             var result = await _adminService.VerifyEmailAsync(verifyEmailDto);
 
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(string id)
+        [Authorize]
+        [HttpPost("forgorPasswordGenerateOtp")]
+        public async Task<IActionResult> ForgorPasswordGenerateOtp([FromHeader(Name = "Authorization")] string authorizationToken, ForgotPasswordOtpDto forgotPasswordOtpDto)
         {
-            var result = await _adminService.DeleteUserAsync(id);
+            var result = await _adminService.ForgotPasswordGetOtpAsync(authorizationToken,forgotPasswordOtpDto);
             return StatusCode(result.StatusCode, result);
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        //[Authorize]
+
+        [Authorize]
+        [HttpPost("forgorPassword")]
+        public async Task<IActionResult> ForgorPassword([FromHeader(Name = "Authorization")] string authorizationToken, ForgotPasswordDto forgotPasswordDto)
+        {
+            var result = await _adminService.ForgotPasswordAsync(authorizationToken,forgotPasswordDto);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser([FromHeader(Name = "Authorization")] string authorizationToken, string id)
+        {
+            var result = await _adminService.DeleteUserAsync(authorizationToken, id);
+            return StatusCode(result.StatusCode, result);
+        }
+        
+        [Authorize]
         [HttpGet("getAllUser")]
         public async Task<IActionResult> GetUser([FromHeader(Name = "Authorization")] string authorizationToken)
         {
