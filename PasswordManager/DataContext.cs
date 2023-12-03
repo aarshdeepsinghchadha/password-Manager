@@ -7,6 +7,7 @@ namespace PasswordManager
     public class DataContext : IdentityDbContext<AppUser>
     {
         public DbSet<Credential> Credentials { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DataContext(DbContextOptions options) : base(options)
         {
         }
@@ -14,12 +15,19 @@ namespace PasswordManager
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Credential>().HasKey(x => x.Id);
             // Configure the relationship between AppUser and Credential
             modelBuilder.Entity<Credential>()
                 .HasOne(c => c.AppUser)
                 .WithMany(u => u.Credentials)
                 .HasForeignKey(c => c.UserId)
                 .IsRequired();
+
+            modelBuilder.Entity<RefreshToken>()
+               .HasOne(x => x.AppUser)
+               .WithMany(x => x.RefreshTokens)
+               .HasForeignKey(x => x.AppUserId)
+               .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
