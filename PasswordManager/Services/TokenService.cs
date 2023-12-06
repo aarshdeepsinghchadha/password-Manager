@@ -108,17 +108,12 @@ namespace PasswordManager.Services
             var user = await _userManager.FindByIdAsync(appUserId);
             if (user != null)
             {
-                var existingTokens = await _context.RefreshTokens.ToListAsync();
+                var existingTokens = await _context.RefreshTokens.Where(x => x.AppUserId == user.Id && x.Revoked == null).ToListAsync();
 
                 // Iterate through the existing tokens and revoke them
                 foreach (var existingToken in existingTokens)
                 {
-                    // Check if the token is still valid
-                    if (DateTime.UtcNow >= existingToken.Expires && existingToken.Revoked == null)
-                    {
-                        // Revoke the token
-                        existingToken.Revoked = DateTime.UtcNow;
-                    }
+                    existingToken.Revoked = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
@@ -207,12 +202,6 @@ namespace PasswordManager.Services
                 SecurityToken validatedToken;
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out validatedToken);
 
-                // Check if the token is expired
-                if (validatedToken.ValidTo < DateTime.UtcNow)
-                {
-                    return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status400BadRequest, "Token has expired", null);
-                }
-
                 // Extract user information from the decoded token
                 var email = principal.FindFirst(ClaimTypes.Email)?.Value;
 
@@ -222,7 +211,16 @@ namespace PasswordManager.Services
                 {
                     return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status404NotFound, "User does not exist", null);
                 }
-
+                var existingToken = await _context.RefreshTokens.Where(x => x.AppUserId == user.Id && x.Token == token).FirstOrDefaultAsync();
+                if(existingToken == null) 
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status404NotFound, "Token does not exist", null);
+                }
+                // Check if the token is expired
+                if (validatedToken.ValidTo < DateTime.UtcNow || existingToken.Revoked != null)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status400BadRequest, "Token has expired", null);
+                }
                 var response = new DecodeTokenDto
                 {
                     Status = true,

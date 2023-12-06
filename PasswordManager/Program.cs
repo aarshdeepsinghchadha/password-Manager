@@ -58,7 +58,17 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
 
-
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("CorsPolicy", policy =>
+    {
+        policy
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .WithOrigins("https://localhost:44321")
+            .WithExposedHeaders("WWW-Authenticate", "Pagination");
+    });
+});
 
 var app = builder.Build();
 
@@ -69,10 +79,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseRouting();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
+// Place the CORS middleware after UseStaticFiles, but before UseAuthorization
+app.UseCors("CorsPolicy");
+
+app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+

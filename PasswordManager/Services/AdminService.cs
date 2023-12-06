@@ -1,13 +1,10 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json.Linq;
 using PasswordManager.Common;
 using PasswordManager.Dto;
 using PasswordManager.Interfaces;
 using PasswordManager.Models;
-using System.Linq;
 using System.Text;
 
 namespace PasswordManager.Services
@@ -72,7 +69,7 @@ namespace PasswordManager.Services
             }
         }
 
-        public async Task<ReturnResponse> RegisterUserAsync(RegisterDto registerDto)
+        public async Task<ReturnResponse> RegisterUserAsync(RegisterDto registerDto, string origin)
         {
             try
             {
@@ -109,10 +106,15 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
-                    var token = await _userManager.GenerateTwoFactorTokenAsync(newUser, "Email");
-                    await _emailSender.SendEmailAsync(newUser.Email, "Password Manager | OTP Email Verification", $"Hi {newUser.UserName}! Please use the following security code to verify your email <br/><h3>" + token + "</h3>");
+                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
+                    token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                    var encodedUrl = $"{origin}/api/admin/verifyEmail?token={token}&email={newUser.Email}";
+                    // var token = await _userManager.GenerateTwoFactorTokenAsync(newUser, "Email");
+                    //await _emailSender.SendEmailAsync(newUser.Email, "Password Manager | OTP Email Verification", $"Hi {newUser.UserName}! Please use the following security code to verify your email <br/><h3>" + token + "</h3>");
+                    var message = $"<p>Please click the below link to verify your email address:</p><p><a href='{encodedUrl}'>Click to verify email</a></p>";
+                    await _emailSender.SendEmailAsync(newUser.Email, "Please verify email", message);
                     return await _responseGeneratorService.GenerateResponseAsync(
-                        true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail");
+                        true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail and Verfiy your Email");
                 }
                 else
                 {
@@ -252,32 +254,27 @@ namespace PasswordManager.Services
             return null;
         }
 
-        public async Task<ReturnResponse> VerifyEmailAsync(VerifyEmailDto verifyEmailDto)
+        public async Task<ReturnResponse> VerifyEmailAsync(string token, string email)
         {
             try
             {
-                var user = await _userManager.FindByEmailAsync(verifyEmailDto.Email);
+                var user = await _userManager.FindByEmailAsync(email);
                 if (user == null)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(
                        false, StatusCodes.Status401Unauthorized, "Unauthorized");
                 }
 
-                var isOTPVerified = await _userManager.VerifyTwoFactorTokenAsync(user, "Email", verifyEmailDto.OTP);
-                if (isOTPVerified)
+                var decodedTokenBytes = WebEncoders.Base64UrlDecode(token);//decode the token as done encoding above
+                var decodedToken = Encoding.UTF8.GetString(decodedTokenBytes);
+                var result = await _userManager.ConfirmEmailAsync(user, decodedToken);//confirm if this is a valid confirmation of email and token 
+                if (!result.Succeeded)
                 {
-                    user.EmailConfirmed = true;
-                    var result = await _userManager.UpdateAsync(user);
-
-                    if (result.Succeeded)
-                    {
-                        return await _responseGeneratorService.GenerateResponseAsync(
-                       true, StatusCodes.Status200OK, "Verified");
-                    }
-
+                    return await _responseGeneratorService.GenerateResponseAsync(
+                           false, StatusCodes.Status400BadRequest, "Unable to authorize user.");
                 }
                 return await _responseGeneratorService.GenerateResponseAsync(
-                       false, StatusCodes.Status400BadRequest, "Unable to authorize user.");
+                          true, StatusCodes.Status200OK, "Email is confirmed - you can login");
             }
             catch(Exception ex)
             {
@@ -325,100 +322,61 @@ namespace PasswordManager.Services
             }
         }
 
-        /// <summary>
-        /// Method to check the email for what the user wants to create new password for exist or not
-        /// </summary>
-        /// <param name="email"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public async Task<ReturnResponse> ForgotPasswordGetOtpAsync(string authorizationToken, ForgotPasswordOtpDto forgotPasswordOtpDto)
+        public async Task<ReturnResponse> ForgotPassword(ForgotPasswordDto forgotPasswordDto)
         {
-            ReturnResponse response = new ReturnResponse();
             try
             {
-                //check the authorization token is valid or not
-                var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
-                if (!checkAuthorizationTokenIsValid.Status)
+                var user = await _userManager.FindByEmailAsync(forgotPasswordDto.Email);
+                if (user == null)
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                     false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Email does not exist");
                 }
-                if (!checkAuthorizationTokenIsValid.Data.Status)
-                {
-                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                  false, StatusCodes.Status401Unauthorized, "InValid token", null);
-                }
-                //check the user with the request email exist or not
-                var user = await _userManager.FindByEmailAsync(forgotPasswordOtpDto.Email);
-                if(user == null)
-                {
-                    return await _responseGeneratorService.GenerateResponseAsync<string>(
-                   false, StatusCodes.Status404NotFound, $"User with Email : {forgotPasswordOtpDto.Email} does not exist!", null);
-                }
-
-                //Generate new token and send email 
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                await _emailSender.SendEmailAsync(user.Email, "Password Manager | OTP Forgot Password Verification", $"Hi {user.UserName}! Please use the following security code to change your password <br/><h3>" + token + "</h3>");
-                return await _responseGeneratorService.GenerateResponseAsync(
-                        true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail");
+                var token = await _userManager.GenerateTwoFactorTokenAsync(user, "Email");
+                await _emailSender.SendEmailAsync(user.Email, " OTP Reset Password", "Please use the following OTP to reset your password: <br/><h3>" + token + "</h3>");
+                return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "Please check your email, OTP Sent");
             }
             catch(Exception ex)
             {
-                // Handle other exceptions
-                return await _responseGeneratorService.GenerateResponseAsync(
-                    false, StatusCodes.Status500InternalServerError, $"An error occurred in ForgotPasswordGetOtpAsync : {ex.Message}");
+                return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
 
-        /// <summary>
-        /// Method to update the user oldpassword to new password
-        /// </summary>
-        /// <param name="otp"></param>
-        /// <param name="newPassword"></param>
-        /// <param name="newConfirmPassword"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public async Task<ReturnResponse> ForgotPasswordAsync(string authorizationToken, ForgotPasswordDto forgotPasswordDto)
+        public async Task<ReturnResponse> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
-            ReturnResponse response = new ReturnResponse();
             try
             {
-                //check the password are same or not
-                if (forgotPasswordDto.Password != forgotPasswordDto.ConfirmPassword)
+                var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
+                if(user == null)
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status400BadRequest, "Password and Confirm Password should be the same");
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Email does not exist");
                 }
-                //check the authorization token is valid or not
-                var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
-                if (!checkAuthorizationTokenIsValid.Status)
+                if (resetPasswordDto.NewPassword != resetPasswordDto.NewConfirmPassword)
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message);
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "New Password and Confirm Password should be the same.");
                 }
-                if (!checkAuthorizationTokenIsValid.Data.Status)
+                var isOTPVerified = await _userManager.VerifyTwoFactorTokenAsync(user, "Email", resetPasswordDto.OTP);
+                if (isOTPVerified)
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "InValid token");
-                }
-                //check the otp sent was valid or not 
-                IdentityResult isPasswordChanged = await _userManager.ResetPasswordAsync(checkAuthorizationTokenIsValid.Data.UserDetails, forgotPasswordDto.OTP, forgotPasswordDto.Password);
-                if (isPasswordChanged.Succeeded)
-                {
-                    // Hash the ConfirmPassword and store it
-                    var passwordHasher = new PasswordHasher<AppUser>();
-                    checkAuthorizationTokenIsValid.Data.UserDetails.ConfirmPassword = passwordHasher.HashPassword(checkAuthorizationTokenIsValid.Data.UserDetails, forgotPasswordDto.ConfirmPassword);
-                    await _userManager.UpdateAsync(checkAuthorizationTokenIsValid.Data.UserDetails);
-                    return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "Password Updated!");
+                    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                    var result = await _userManager.ResetPasswordAsync(user, token, resetPasswordDto.NewPassword);
+                    if (result.Succeeded)
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "Password Reset Successfully");
+                    }
+                    else
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Unable to Authorize User");
+                    }
                 }
                 else
                 {
-                    string descriptionOfError = isPasswordChanged.Errors.Select(x => x.Description).FirstOrDefault();
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, descriptionOfError);
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Unable to Authorize User");
                 }
+                
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                // Handle other exceptions
-                return await _responseGeneratorService.GenerateResponseAsync(
-                    false, StatusCodes.Status500InternalServerError, $"An error occurred in ForgotPasswordAsync : {ex.Message}");
+                return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
     }
