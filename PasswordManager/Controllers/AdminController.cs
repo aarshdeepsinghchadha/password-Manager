@@ -29,7 +29,8 @@ namespace PasswordManager.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var result = await _adminService.RegisterUserAsync(registerDto);
+            var origin = Request.Headers["origin"];
+            var result = await _adminService.RegisterUserAsync(registerDto, origin);
 
             return StatusCode(result.StatusCode, result);
         }
@@ -41,28 +42,28 @@ namespace PasswordManager.Controllers
 
             return StatusCode(result.StatusCode, result);
         }
-
-        [HttpPost("verifyEmail")]
-        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
+        [AllowAnonymous]
+        [HttpGet("VerifyEmail")]
+        public async Task<IActionResult> VerifyEmail([FromQuery(Name = "token")]string token , [FromQuery(Name = "email")] string email)
         {
-            var result = await _adminService.VerifyEmailAsync(verifyEmailDto);
+            var result = await _adminService.VerifyEmailAsync(token, email);
 
             return StatusCode(result.StatusCode, result);
         }
 
-        [Authorize]
-        [HttpPost("forgorPasswordGenerateOtp")]
-        public async Task<IActionResult> ForgorPasswordGenerateOtp([FromHeader(Name = "Authorization")] string authorizationToken, ForgotPasswordOtpDto forgotPasswordOtpDto)
+        //[Authorize]
+        [HttpPost("resetPassword")]
+        public async Task<IActionResult> ResetPassword( ResetPasswordDto resetPasswordDto)
         {
-            var result = await _adminService.ForgotPasswordGetOtpAsync(authorizationToken,forgotPasswordOtpDto);
+            var result = await _adminService.ResetPasswordAsync(resetPasswordDto);
             return StatusCode(result.StatusCode, result);
         }
 
-        [Authorize]
-        [HttpPost("forgorPassword")]
-        public async Task<IActionResult> ForgorPassword([FromHeader(Name = "Authorization")] string authorizationToken, ForgotPasswordDto forgotPasswordDto)
+        //[Authorize]
+        [HttpPost("forgotPassword")]
+        public async Task<IActionResult> ForgorPassword(ForgotPasswordDto forgotPasswordDto)
         {
-            var result = await _adminService.ForgotPasswordAsync(authorizationToken,forgotPasswordDto);
+            var result = await _adminService.ForgotPassword(forgotPasswordDto);
             return StatusCode(result.StatusCode, result);
         }
 
