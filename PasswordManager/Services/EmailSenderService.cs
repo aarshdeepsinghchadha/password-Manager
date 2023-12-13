@@ -1,7 +1,11 @@
 ﻿using PasswordManager.Common;
 using PasswordManager.Interfaces;
+using RestSharp.Authenticators;
+using RestSharp;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using static System.Net.WebRequestMethods;
+
 
 namespace PasswordManager.Services
 {
@@ -14,7 +18,10 @@ namespace PasswordManager.Services
             _config = config;
             _responseGeneratorService = responseGeneratorService;
         }
-        public async Task<ReturnResponse> SendEmailAsync(string userEmail, string emailSubject, string msg)
+
+       
+
+        public async Task<ReturnResponse> SendEmailUsingSendGridAsync(string userEmail, string emailSubject, string msg)
         {
             try
             {
@@ -32,7 +39,7 @@ namespace PasswordManager.Services
                 var response = await client.SendEmailAsync(message);
                 if(!response.IsSuccessStatusCode)
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status400BadRequest, $"An error occurred SendEmailAsync {response.StatusCode}");
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status400BadRequest, $"An error occurred SendEmailUsingSendGridAsync {response.StatusCode}");
                 }
                 else
                 {
@@ -43,8 +50,39 @@ namespace PasswordManager.Services
             {
                 // Handle other exceptions
                 return await _responseGeneratorService.GenerateResponseAsync(
-                    false, StatusCodes.Status500InternalServerError, $"An error occurred SendEmailAsync {ex.Message}");
+                    false, StatusCodes.Status500InternalServerError, $"An error occurred SendEmailUsingSendGridAsync {ex.Message}");
             }
         }
+        public async Task<ReturnResponse> SendEmailUsingMailGunAsync(string userEmail, string emailSubject, string msg)
+        {
+            var apiKey = _config["MailGun:Key"];
+            var domainName = _config["MailGun:DomainName"];
+            var baseurl = "https://api.mailgun.net/v3";
+            var request = new RestRequest();
+            request.Authenticator = new HttpBasicAuthenticator("api", apiKey);
+            request.AddParameter("domain", domainName, ParameterType.UrlSegment);
+            request.Resource = $"{baseurl}/{domainName}/messages";
+            request.AddParameter("from", "aarshdeep.chadha@indianic.com");
+            request.AddParameter("to", userEmail);
+            request.AddParameter("subject", emailSubject);
+            request.AddParameter("html", msg);
+            request.Method = Method.Post;
+
+            RestClient restClient = new RestClient();
+            var result = restClient.Execute(request);
+            if (!result.IsSuccessful)
+            {
+                return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status200OK, $"Email was not  sent successfully : {result.ErrorMessage}");
+            }
+            else
+            {
+                return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, $"Email was sent successfully : {result.StatusCode}");
+            }
+        }
+
+       
+
+
+
     }
 }

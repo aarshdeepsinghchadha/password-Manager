@@ -4,6 +4,7 @@ namespace PasswordManager.Interfaces
 {
     public interface IEmailSenderService
     {
-        Task<ReturnResponse> SendEmailAsync(string userEmail, string emailSubject, string msg);
+        Task<ReturnResponse> SendEmailUsingSendGridAsync(string userEmail, string emailSubject, string msg);
+        Task<ReturnResponse> SendEmailUsingMailGunAsync(string userEmail, string emailSubject, string msg);
     }
 }

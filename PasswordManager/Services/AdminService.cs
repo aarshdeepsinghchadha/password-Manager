@@ -110,9 +110,9 @@ namespace PasswordManager.Services
                     token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
                     var encodedUrl = $"{origin}/api/admin/verifyEmail?token={token}&email={newUser.Email}";
                     // var token = await _userManager.GenerateTwoFactorTokenAsync(newUser, "Email");
-                    //await _emailSender.SendEmailAsync(newUser.Email, "Password Manager | OTP Email Verification", $"Hi {newUser.UserName}! Please use the following security code to verify your email <br/><h3>" + token + "</h3>");
+                    //await _emailSender.SendEmailUsingSendGridAsync(newUser.Email, "Password Manager | OTP Email Verification", $"Hi {newUser.UserName}! Please use the following security code to verify your email <br/><h3>" + token + "</h3>");
                     var message = $"<p>Please click the below link to verify your email address:</p><p><a href='{encodedUrl}'>Click to verify email</a></p>";
-                    await _emailSender.SendEmailAsync(newUser.Email, "Please verify email", message);
+                    await _emailSender.SendEmailUsingSendGridAsync(newUser.Email, "Please verify email", message);
                     return await _responseGeneratorService.GenerateResponseAsync(
                         true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail and Verfiy your Email");
                 }
@@ -332,7 +332,7 @@ namespace PasswordManager.Services
                     return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Email does not exist");
                 }
                 var token = await _userManager.GenerateTwoFactorTokenAsync(user, "Email");
-                await _emailSender.SendEmailAsync(user.Email, " OTP Reset Password", "Please use the following OTP to reset your password: <br/><h3>" + token + "</h3>");
+                await _emailSender.SendEmailUsingSendGridAsync(user.Email, " OTP Reset Password", "Please use the following OTP to reset your password: <br/><h3>" + token + "</h3>");
                 return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "Please check your email, OTP Sent");
             }
             catch(Exception ex)
