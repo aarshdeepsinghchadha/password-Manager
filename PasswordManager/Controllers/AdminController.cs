@@ -29,10 +29,16 @@ namespace PasswordManager.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var origin = Request.Headers["origin"];
-            var result = await _adminService.RegisterUserAsync(registerDto, origin);
-
-            return StatusCode(result.StatusCode, result);
+            string? origin = Request.Headers["origin"];
+            if (origin != null)
+            {
+                var result = await _adminService.RegisterUserAsync(registerDto, origin);
+                return StatusCode(result.StatusCode, result);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status404NotFound, "Please Pass the Origin from Headers");
+            }
         }
 
         [HttpPost("refreshToken")]
@@ -65,6 +71,21 @@ namespace PasswordManager.Controllers
         {
             var result = await _adminService.ForgotPassword(forgotPasswordDto);
             return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("resendEmailVerificationLink")]
+        public async Task<IActionResult> ResendEmailVerficationLink(ResendEmailVerificationDto resendEmailVerificationDto)
+        {
+            string? origin = Request.Headers["origin"];
+            if (origin != null)
+            {
+                var result = await _adminService.ResendEmailVerificationLink(resendEmailVerificationDto, origin);
+                return StatusCode(result.StatusCode, result);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status404NotFound, "Please Pass the Origin from Headers");
+            }
         }
 
         [Authorize]

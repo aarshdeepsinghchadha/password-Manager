@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using log4net;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using PasswordManager.Common;
@@ -6,6 +7,7 @@ using PasswordManager.Dto;
 using PasswordManager.Interfaces;
 using PasswordManager.Models;
 using System.Text;
+using System.Text.Json;
 
 namespace PasswordManager.Services
 {
@@ -16,14 +18,18 @@ namespace PasswordManager.Services
         private readonly IResponseGeneratorService _responseGeneratorService;
         private readonly ITokenService _tokenService;
         private readonly IEmailSenderService _emailSender;
+        private readonly ILogger<AdminService> _logger;
+        private readonly ILog _log;
 
-        public AdminService(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IResponseGeneratorService responseGeneratorService, ITokenService tokenService, IEmailSenderService emailSender)
+        public AdminService(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IResponseGeneratorService responseGeneratorService, ITokenService tokenService, IEmailSenderService emailSender, ILogger<AdminService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _responseGeneratorService = responseGeneratorService;
             _tokenService = tokenService;
             _emailSender = emailSender;
+            _logger = logger;
+            _log = LogManager.GetLogger(typeof(AdminService));
         }
 
 
@@ -36,6 +42,7 @@ namespace PasswordManager.Services
 
                 if (user == null)
                 {
+                    _logger.LogError($"Invalid username or email with {loginDto.Username}");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status401Unauthorized, "Invalid username or email.");
                 }
@@ -50,6 +57,9 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
+                   _log.Info($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
+                   _log.Error($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
+                   _log.Warn($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
                     var token = await _tokenService.GenerateLoginToken(user.UserName, loginDto.Password);
                     await _tokenService.SetRefreshToken(user, token);
                     return await _responseGeneratorService.GenerateResponseAsync(
@@ -106,15 +116,17 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
-                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
-                    token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-                    var encodedUrl = $"{origin}/api/admin/verifyEmail?token={token}&email={newUser.Email}";
-                    // var token = await _userManager.GenerateTwoFactorTokenAsync(newUser, "Email");
-                    //await _emailSender.SendEmailUsingSendGridAsync(newUser.Email, "Password Manager | OTP Email Verification", $"Hi {newUser.UserName}! Please use the following security code to verify your email <br/><h3>" + token + "</h3>");
-                    var message = $"<p>Please click the below link to verify your email address:</p><p><a href='{encodedUrl}'>Click to verify email</a></p>";
-                    await _emailSender.SendEmailUsingSendGridAsync(newUser.Email, "Please verify email", message);
-                    return await _responseGeneratorService.GenerateResponseAsync(
-                        true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail and Verfiy your Email");
+                    var sendVerificationEmailResult = await SendVerificationEmailAsync(newUser, origin);
+                    if (sendVerificationEmailResult.Status)
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(
+                            true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail and Verfiy your Email");
+                    }
+                    else
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(
+                           true, StatusCodes.Status400BadRequest, $"User registered successfully, Email not sent due to some technical issues : {sendVerificationEmailResult.Message}, so please click on the ResentVerficationLink to continue, If Error Continues please contact the Support!");
+                    }
                 }
                 else
                 {
@@ -377,6 +389,65 @@ namespace PasswordManager.Services
             catch (Exception ex)
             {
                 return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, ex.Message);
+            }
+        }
+
+
+        public async Task<ReturnResponse> ResendEmailVerificationLink(ResendEmailVerificationDto resendEmailVerificationLinkDto, string origin)
+        {
+            try
+            {
+                //verify the email if it exist in the database or not
+                var userExist = await _userManager.FindByEmailAsync(resendEmailVerificationLinkDto.Email);
+                if(userExist == null)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, $"User Does not exist please Register!");
+                }
+                //if it does send email
+                else
+                {
+                    var sendVerificationEmailResult = await SendVerificationEmailAsync(userExist, origin);
+                    if (sendVerificationEmailResult.Status)
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(
+                            true, StatusCodes.Status200OK, $"Please check your mail and Verfiy your Email");
+                    }
+                    else
+                    {
+                        return await _responseGeneratorService.GenerateResponseAsync(
+                           true, StatusCodes.Status400BadRequest, $"Email not sent due to some technical issues : {sendVerificationEmailResult.Message}, so please click on the ResentVerficationLink to continue, If Error Continues please contact the Support!");
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, $"An Error occured in ResendEmailVerificationLink() , {ex.Message}");
+            }
+        }
+
+        private async Task<ReturnResponse> SendVerificationEmailAsync(AppUser newUser, string origin)
+        {
+            try
+            {
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
+                token = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                var encodedUrl = $"{origin}/api/admin/verifyEmail?token={token}&email={newUser.Email}";
+
+                var message = $"<p>Please click the below link to verify your email address:</p><p><a href='{encodedUrl}'>Click to verify email</a></p>";
+                var emailResult = await _emailSender.SendEmailUsingSendGridAsync(newUser.Email, "Please verify email", message);
+                if (emailResult.Status)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, $"{emailResult.Message}");
+                }
+                else
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status400BadRequest, $"Email Not Sent : {emailResult.Message}");
+
+                }
+            }
+            catch (Exception ex)
+            {
+                return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, $"An Error Occured on SendVerificationEmailAsync : {ex.Message}");
             }
         }
     }

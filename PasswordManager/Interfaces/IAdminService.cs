@@ -13,5 +13,7 @@ namespace PasswordManager.Interfaces
         Task<ReturnResponse> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
         Task<ReturnResponse> DeleteUserAsync(string authorizationToken, string userId);
         Task<ReturnResponse<List<GetAllUserDto>>> GetAllUser(string authorizationToken);
+
+        Task<ReturnResponse> ResendEmailVerificationLink(ResendEmailVerificationDto resendEmailVerificationLinkDto, string origin);
     }
 }

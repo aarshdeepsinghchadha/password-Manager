@@ -1,3 +1,5 @@
+using log4net.Config;
+using log4net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,8 @@ using PasswordManager.Interfaces;
 using PasswordManager.Models;
 using PasswordManager.Services;
 using System.Text;
+using System.Xml;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +33,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<DataContext>()
     .AddDefaultTokenProviders();
 
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -48,6 +53,16 @@ builder.Services.AddAuthentication(options =>
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 });
+
+// Configure log4net
+XmlDocument log4netConfig = new XmlDocument();
+log4netConfig.Load(File.OpenRead("log4net.config"));
+var repo = log4net.LogManager.CreateRepository(
+            Assembly.GetEntryAssembly(), typeof(log4net.Repository.Hierarchy.Hierarchy));
+log4net.Config.XmlConfigurator.Configure(repo, log4netConfig["log4net"]);
+
+
+
 
 // Explicitly add UserManager and SignInManager
 builder.Services.AddScoped<UserManager<AppUser>>();

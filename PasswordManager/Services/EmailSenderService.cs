@@ -43,7 +43,7 @@ namespace PasswordManager.Services
                 }
                 else
                 {
-                    return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status200OK, $"Email was sent successfully : {response.StatusCode}");
+                    return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, $"Email was sent successfully : {response.StatusCode}");
                 }
             }
             catch(Exception ex)
