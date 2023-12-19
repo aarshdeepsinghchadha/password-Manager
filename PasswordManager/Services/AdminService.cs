@@ -58,22 +58,22 @@ namespace PasswordManager.Services
                 if (result.Succeeded)
                 {
                    _log.Info($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
-                   _log.Error($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
-                   _log.Warn($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
                     var token = await _tokenService.GenerateLoginToken(user.UserName, loginDto.Password);
                     await _tokenService.SetRefreshToken(user, token);
+                    _log.Info($"Token has been Set for the User : {user.UserName}");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         true, StatusCodes.Status200OK, "Login successful.", token);
                 }
                 else
                 {
+                    _log.Error($"Invalid Password for {user.UserName} when trying to login!");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status401Unauthorized, "Invalid password.");
                 }
             }
             catch (Exception ex)
             {
-                // Handle other exceptions
+                _log.Error($"An error occurred during user login : {ex.Message}");
                 return await _responseGeneratorService.GenerateResponseAsync(
                     false, StatusCodes.Status500InternalServerError, $"An error occurred during user login : {ex.Message}");
             }
@@ -86,6 +86,7 @@ namespace PasswordManager.Services
                 // Check if password and confirmPassword match
                 if (registerDto.Password != registerDto.ConfirmPassword)
                 {
+                    _log.Error($"While registering with {registerDto.Email} Password and confirm password do not match.");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status400BadRequest, "Password and confirm password do not match.");
                 }
@@ -94,6 +95,7 @@ namespace PasswordManager.Services
                 var existingUser = await _userManager.FindByEmailAsync(registerDto.Email);
                 if (existingUser != null)
                 {
+                    _log.Error($"User with the {existingUser.Email} already exist");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status400BadRequest, "User with the same email already exists.");
                 }
@@ -116,28 +118,31 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
+                    _log.Info($"User has been Created with Username : {newUser.UserName}");
                     var sendVerificationEmailResult = await SendVerificationEmailAsync(newUser, origin);
                     if (sendVerificationEmailResult.Status)
                     {
+                        _log.Info($"User registered successfully, Please check your mail and Verfiy your Email");
                         return await _responseGeneratorService.GenerateResponseAsync(
                             true, StatusCodes.Status200OK, $"User registered successfully, Please check your mail and Verfiy your Email");
                     }
                     else
                     {
+                        _log.Error($"User registered successfully, Email not sent due to some technical issues : {sendVerificationEmailResult.Message}, so please click on the ResentVerficationLink to continue, If Error Continues please contact the Support!");
                         return await _responseGeneratorService.GenerateResponseAsync(
                            true, StatusCodes.Status400BadRequest, $"User registered successfully, Email not sent due to some technical issues : {sendVerificationEmailResult.Message}, so please click on the ResentVerficationLink to continue, If Error Continues please contact the Support!");
                     }
                 }
                 else
                 {
-                    // Handle registration failure
+                    _log.Error($"Failed to register user : {result.Errors}");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status500InternalServerError, $"Failed to register user : {result.Errors}");
                 }
             }
             catch (Exception ex)
             {
-                // Handle other exceptions
+                _log.Error($"An error occurred during user registration: {ex.Message}");
                 return await _responseGeneratorService.GenerateResponseAsync(
                     false, StatusCodes.Status500InternalServerError, $"An error occurred during user registration: {ex.Message}");
             }
@@ -151,11 +156,13 @@ namespace PasswordManager.Services
                 var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
                 if (!checkAuthorizationTokenIsValid.Status)
                 {
+                    _log.Error($"{checkAuthorizationTokenIsValid.Message}");
                     return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
                      false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
                 }
                 if (!checkAuthorizationTokenIsValid.Data.Status)
                 {
+                    _log.Error($"An Error Occured in DeleteUserAsync() : InValid Token");
                     return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
                   false, StatusCodes.Status401Unauthorized, "InValid token", null);
                 }
@@ -164,6 +171,7 @@ namespace PasswordManager.Services
 
                 if (user == null)
                 {
+                    _log.Error($"An Error Occured in DeleteUserAsync() :User was not Found");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status404NotFound, "User not found.");
                 }
@@ -173,21 +181,22 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
+                    _log.Info($"User with username : {user.UserName}, Deleted Successfully.");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         true, StatusCodes.Status200OK, "User deleted successfully.");
                 }
                 else
                 {
-                    // Handle deletion failure
+                    _log.Error($"An Error Occured in DeleteUserAsync() :Failed to delete user.");
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status500InternalServerError, "Failed to delete user.");
                 }
             }
             catch (Exception ex)
             {
-                // Handle other exceptions
+                _log.Error($"An error occurred during user deletion, {ex.Message}");
                 return await _responseGeneratorService.GenerateResponseAsync(
-                    false, StatusCodes.Status500InternalServerError, "An error occurred during user deletion.");
+                    false, StatusCodes.Status500InternalServerError, $"An error occurred during user deletion, {ex.Message}");
             }
         }
 
