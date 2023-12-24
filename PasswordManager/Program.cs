@@ -33,7 +33,7 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
 
 // Add Identity
-builder.Services.AddIdentity<AppUser, IdentityRole>()
+builder.Services.AddIdentity<AppUser, Role>()
     .AddEntityFrameworkStores<DataContext>()
     .AddDefaultTokenProviders();
 
@@ -71,6 +71,7 @@ log4net.Config.XmlConfigurator.Configure(repo, log4netConfig["log4net"]);
 // Explicitly add UserManager and SignInManager
 builder.Services.AddScoped<UserManager<AppUser>>();
 builder.Services.AddScoped<SignInManager<AppUser>>();
+builder.Services.AddScoped<RoleManager<Role>>();
 
 builder.Services.AddScoped<IResponseGeneratorService, ResponseGeneratorService>();
 
@@ -80,6 +81,8 @@ builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
 builder.Services.AddScoped<IPasswordGenerator, PasswordGenerator>();
 builder.Services.AddScoped<ICredentialService, CredentialService>();
 builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
+
+
 
 builder.Services.AddCors(opt =>
 {
@@ -94,6 +97,16 @@ builder.Services.AddCors(opt =>
 });
 
 var app = builder.Build();
+
+
+
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
+var context = services.GetRequiredService<DataContext>();
+var userManager = services.GetRequiredService<UserManager<AppUser>>();
+var roleManager = services.GetRequiredService<RoleManager<Role>>();
+await context.Database.MigrateAsync();
+await Seed.SeedData(context, userManager, roleManager);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

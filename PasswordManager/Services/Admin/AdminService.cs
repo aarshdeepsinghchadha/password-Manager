@@ -111,7 +111,7 @@ namespace PasswordManager.Services.Admin
                 };
                 // Hash the ConfirmPassword and store it
                 var passwordHasher = new PasswordHasher<AppUser>();
-                newUser.ConfirmPassword = passwordHasher.HashPassword(newUser, registerDto.ConfirmPassword);
+                //newUser.ConfirmPassword = passwordHasher.HashPassword(newUser, registerDto.ConfirmPassword);
 
                 // Register the user in the database
                 var result = await _userManager.CreateAsync(newUser, registerDto.Password);
