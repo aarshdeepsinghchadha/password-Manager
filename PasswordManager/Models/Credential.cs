@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PasswordManager.Models
 {
-    public class Credential : BaseEntity
+    public class Credential
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -30,10 +30,7 @@ namespace PasswordManager.Models
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
         public string? LastUpdatedByUserId { get; set; }
-        public DateTime? DeletedAt { get; set; }
-        public string? DeletedByUserId { get; set; }
         public AppUser? UpdatedByUser { get; set; }
-        public AppUser? DeletedByUser { get; set; }
         public AppUser CreatedByUser { get; set; }
     }
 }

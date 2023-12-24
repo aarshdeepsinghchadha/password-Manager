@@ -11,6 +11,10 @@ using System.Xml;
 using System.Reflection;
 using PasswordManager.Interfaces.Admin;
 using PasswordManager.Services.Admin;
+using PasswordManager.Interfaces.Credentials;
+using PasswordManager.Services.Credentials;
+using PasswordManager.Repository.Credential;
+using PasswordManager.Interfaces.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,9 +73,13 @@ builder.Services.AddScoped<UserManager<AppUser>>();
 builder.Services.AddScoped<SignInManager<AppUser>>();
 
 builder.Services.AddScoped<IResponseGeneratorService, ResponseGeneratorService>();
+
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
+builder.Services.AddScoped<IPasswordGenerator, PasswordGenerator>();
+builder.Services.AddScoped<ICredentialService, CredentialService>();
+builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
 
 builder.Services.AddCors(opt =>
 {

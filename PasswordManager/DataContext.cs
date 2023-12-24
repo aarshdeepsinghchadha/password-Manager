@@ -28,11 +28,6 @@ namespace PasswordManager
                 .WithMany()
                 .HasForeignKey(c => c.LastUpdatedByUserId);
 
-            modelBuilder.Entity<Credential>()
-                .HasOne(c => c.DeletedByUser)
-                .WithMany()
-                .HasForeignKey(c => c.DeletedByUserId);
-
             modelBuilder.Entity<RefreshToken>()
                .HasOne(x => x.AppUser)
                .WithMany(x => x.RefreshTokens)
