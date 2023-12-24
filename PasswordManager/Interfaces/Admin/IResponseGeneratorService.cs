@@ -1,6 +1,6 @@
 ﻿using PasswordManager.Common;
 
-namespace PasswordManager.Interfaces
+namespace PasswordManager.Interfaces.Admin
 {
     public interface IResponseGeneratorService
     {

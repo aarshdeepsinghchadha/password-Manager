@@ -3,13 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PasswordManager.Common;
 using PasswordManager.Dto;
-using PasswordManager.Interfaces;
+using PasswordManager.Interfaces.Admin;
 using PasswordManager.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace PasswordManager.Services
+namespace PasswordManager.Services.Admin
 {
     public class TokenService : ITokenService
     {
@@ -165,7 +165,7 @@ namespace PasswordManager.Services
                 {
                     Status = true
                 };
-                return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(true, StatusCodes.Status200OK, "ValidToken", response);
+                return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "ValidToken", response);
             }
             catch (Exception ex)
             {
@@ -212,7 +212,7 @@ namespace PasswordManager.Services
                     return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status404NotFound, "User does not exist", null);
                 }
                 var existingToken = await _context.RefreshTokens.Where(x => x.AppUserId == user.Id && x.Token == token).FirstOrDefaultAsync();
-                if(existingToken == null) 
+                if (existingToken == null)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(false, StatusCodes.Status404NotFound, "Token does not exist", null);
                 }
@@ -226,7 +226,7 @@ namespace PasswordManager.Services
                     Status = true,
                     UserDetails = user
                 };
-                return await _responseGeneratorService.GenerateResponseAsync<DecodeTokenDto>(true, StatusCodes.Status200OK, "ValidToken", response);
+                return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "ValidToken", response);
             }
             catch (SecurityTokenExpiredException)
             {

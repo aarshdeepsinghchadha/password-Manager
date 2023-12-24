@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PasswordManager.Models
 {
-    public class Credential
+    public class Credential : BaseEntity
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -26,6 +26,14 @@ namespace PasswordManager.Models
         public string Password { get; set; }
 
         // Navigation property for the related user
-        public AppUser AppUser { get; set; }
+     
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastUpdatedAt { get; set; }
+        public string? LastUpdatedByUserId { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public AppUser? UpdatedByUser { get; set; }
+        public AppUser? DeletedByUser { get; set; }
+        public AppUser CreatedByUser { get; set; }
     }
 }

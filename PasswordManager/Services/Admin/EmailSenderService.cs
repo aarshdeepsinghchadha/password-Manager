@@ -1,13 +1,13 @@
 ﻿using PasswordManager.Common;
-using PasswordManager.Interfaces;
 using RestSharp.Authenticators;
 using RestSharp;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using static System.Net.WebRequestMethods;
+using PasswordManager.Interfaces.Admin;
 
 
-namespace PasswordManager.Services
+namespace PasswordManager.Services.Admin
 {
     public class EmailSenderService : IEmailSenderService
     {
@@ -19,7 +19,7 @@ namespace PasswordManager.Services
             _responseGeneratorService = responseGeneratorService;
         }
 
-       
+
 
         public async Task<ReturnResponse> SendEmailUsingSendGridAsync(string userEmail, string emailSubject, string msg)
         {
@@ -37,7 +37,7 @@ namespace PasswordManager.Services
                 message.SetClickTracking(false, false);
 
                 var response = await client.SendEmailAsync(message);
-                if(!response.IsSuccessStatusCode)
+                if (!response.IsSuccessStatusCode)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status400BadRequest, $"An error occurred SendEmailUsingSendGridAsync {response.StatusCode}");
                 }
@@ -46,7 +46,7 @@ namespace PasswordManager.Services
                     return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, $"Email was sent successfully : {response.StatusCode}");
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 // Handle other exceptions
                 return await _responseGeneratorService.GenerateResponseAsync(
@@ -80,7 +80,7 @@ namespace PasswordManager.Services
             }
         }
 
-       
+
 
 
 

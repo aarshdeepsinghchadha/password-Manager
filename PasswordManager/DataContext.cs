@@ -18,10 +18,20 @@ namespace PasswordManager
             modelBuilder.Entity<Credential>().HasKey(x => x.Id);
             // Configure the relationship between AppUser and Credential
             modelBuilder.Entity<Credential>()
-                .HasOne(c => c.AppUser)
+                .HasOne(c => c.CreatedByUser)
                 .WithMany(u => u.Credentials)
                 .HasForeignKey(c => c.UserId)
                 .IsRequired();
+
+            modelBuilder.Entity<Credential>()
+                .HasOne(c => c.UpdatedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.LastUpdatedByUserId);
+
+            modelBuilder.Entity<Credential>()
+                .HasOne(c => c.DeletedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.DeletedByUserId);
 
             modelBuilder.Entity<RefreshToken>()
                .HasOne(x => x.AppUser)

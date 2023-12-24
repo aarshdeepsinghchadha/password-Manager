@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PasswordManager.Dto;
-using PasswordManager.Interfaces;
+using PasswordManager.Interfaces.Admin;
 
 namespace PasswordManager.Controllers
 {

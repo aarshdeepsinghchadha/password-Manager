@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using PasswordManager.Common;
 using PasswordManager.Dto;
-using PasswordManager.Interfaces;
+using PasswordManager.Interfaces.Admin;
 using PasswordManager.Models;
 using System.Text;
 using System.Text.Json;
 
-namespace PasswordManager.Services
+namespace PasswordManager.Services.Admin
 {
     public class AdminService : IAdminService
     {
@@ -46,7 +46,7 @@ namespace PasswordManager.Services
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status401Unauthorized, "Invalid username or email.");
                 }
-                if(user.EmailConfirmed == false)
+                if (user.EmailConfirmed == false)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(
                         false, StatusCodes.Status401Unauthorized, "Email not verified");
@@ -57,7 +57,7 @@ namespace PasswordManager.Services
 
                 if (result.Succeeded)
                 {
-                   _log.Info($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
+                    _log.Info($"User Logged in With Username : {user.UserName} on {DateTime.UtcNow}");
                     var token = await _tokenService.GenerateLoginToken(user.UserName, loginDto.Password);
                     await _tokenService.SetRefreshToken(user, token);
                     _log.Info($"Token has been Set for the User : {user.UserName}");
@@ -244,7 +244,7 @@ namespace PasswordManager.Services
                             Email = user.Email,
                             Username = user.UserName
                         };
-                        return await _responseGeneratorService.GenerateResponseAsync<RefreshResponseDto>(
+                        return await _responseGeneratorService.GenerateResponseAsync(
                         true, StatusCodes.Status200OK, "New Token", newTokenResponse);
                     }
                     else
@@ -297,7 +297,7 @@ namespace PasswordManager.Services
                 return await _responseGeneratorService.GenerateResponseAsync(
                           true, StatusCodes.Status200OK, "Email is confirmed - you can login");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 // Handle other exceptions
                 return await _responseGeneratorService.GenerateResponseAsync(
@@ -312,8 +312,8 @@ namespace PasswordManager.Services
                 var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
                 if (!checkAuthorizationTokenIsValid.Status)
                 {
-                     return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                      false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
+                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
+                     false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
                 }
                 if (!checkAuthorizationTokenIsValid.Data.Status)
                 {
@@ -332,7 +332,7 @@ namespace PasswordManager.Services
                     EmailConfirmed = user.EmailConfirmed
                 }).ToList();
 
-                return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
+                return await _responseGeneratorService.GenerateResponseAsync(
                   true, StatusCodes.Status200OK, "List of All Users", userDtos);
             }
             catch (Exception ex)
@@ -356,7 +356,7 @@ namespace PasswordManager.Services
                 await _emailSender.SendEmailUsingSendGridAsync(user.Email, " OTP Reset Password", "Please use the following OTP to reset your password: <br/><h3>" + token + "</h3>");
                 return await _responseGeneratorService.GenerateResponseAsync(true, StatusCodes.Status200OK, "Please check your email, OTP Sent");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, ex.Message);
             }
@@ -367,7 +367,7 @@ namespace PasswordManager.Services
             try
             {
                 var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
-                if(user == null)
+                if (user == null)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Email does not exist");
                 }
@@ -393,7 +393,7 @@ namespace PasswordManager.Services
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, "Unable to Authorize User");
                 }
-                
+
             }
             catch (Exception ex)
             {
@@ -408,7 +408,7 @@ namespace PasswordManager.Services
             {
                 //verify the email if it exist in the database or not
                 var userExist = await _userManager.FindByEmailAsync(resendEmailVerificationLinkDto.Email);
-                if(userExist == null)
+                if (userExist == null)
                 {
                     return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status401Unauthorized, $"User Does not exist please Register!");
                 }
@@ -428,7 +428,7 @@ namespace PasswordManager.Services
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, $"An Error occured in ResendEmailVerificationLink() , {ex.Message}");
             }

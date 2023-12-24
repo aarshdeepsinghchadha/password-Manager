@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PasswordManager;
-using PasswordManager.Interfaces;
 using PasswordManager.Models;
-using PasswordManager.Services;
 using System.Text;
 using System.Xml;
 using System.Reflection;
+using PasswordManager.Interfaces.Admin;
+using PasswordManager.Services.Admin;
 
 var builder = WebApplication.CreateBuilder(args);
 
