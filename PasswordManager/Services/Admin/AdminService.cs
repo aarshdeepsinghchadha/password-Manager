@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using PasswordManager.Common;
 using PasswordManager.Dto;
+using PasswordManager.Dto.Admin;
+using PasswordManager.Dto.Credentials;
 using PasswordManager.Interfaces.Admin;
 using PasswordManager.Models;
 using System.Text;
@@ -20,8 +22,10 @@ namespace PasswordManager.Services.Admin
         private readonly IEmailSenderService _emailSender;
         private readonly ILogger<AdminService> _logger;
         private readonly ILog _log;
+        private readonly RoleManager<Role> _roleManager;
+        private readonly DataContext _context;
 
-        public AdminService(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IResponseGeneratorService responseGeneratorService, ITokenService tokenService, IEmailSenderService emailSender, ILogger<AdminService> logger)
+        public AdminService(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IResponseGeneratorService responseGeneratorService, ITokenService tokenService, IEmailSenderService emailSender, ILogger<AdminService> logger, RoleManager<Role> roleManager, DataContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -30,6 +34,8 @@ namespace PasswordManager.Services.Admin
             _emailSender = emailSender;
             _logger = logger;
             _log = LogManager.GetLogger(typeof(AdminService));
+            _roleManager = roleManager;
+            _context = context;
         }
 
 
@@ -100,6 +106,7 @@ namespace PasswordManager.Services.Admin
                         false, StatusCodes.Status400BadRequest, "User with the same email already exists.");
                 }
 
+                var roleName = await _roleManager.Roles.FirstOrDefaultAsync(x => x.Name == "User");
                 // Create a new AppUser
                 var newUser = new AppUser
                 {
@@ -107,7 +114,9 @@ namespace PasswordManager.Services.Admin
                     LastName = registerDto.LastName,
                     UserName = registerDto.Username,
                     Email = registerDto.Email,
-                    PhoneNumber = registerDto.PhoneNumber
+                    PhoneNumber = registerDto.PhoneNumber,
+                    Role = roleName.Name
+
                 };
                 // Hash the ConfirmPassword and store it
                 var passwordHasher = new PasswordHasher<AppUser>();
@@ -119,6 +128,15 @@ namespace PasswordManager.Services.Admin
                 if (result.Succeeded)
                 {
                     _log.Info($"User has been Created with Username : {newUser.UserName}");
+
+                    var userRole = new AppUserRoles
+                    {
+                        RoleId = roleName.Id,
+                        UserId = newUser.Id
+                    };
+                    await _context.UserRoles.AddRangeAsync(userRole);
+                    await _context.SaveChangesAsync();
+
                     var sendVerificationEmailResult = await SendVerificationEmailAsync(newUser, origin);
                     if (sendVerificationEmailResult.Status)
                     {
@@ -305,43 +323,7 @@ namespace PasswordManager.Services.Admin
             }
         }
 
-        public async Task<ReturnResponse<List<GetAllUserDto>>> GetAllUser(string authorizationToken)
-        {
-            try
-            {
-                var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
-                if (!checkAuthorizationTokenIsValid.Status)
-                {
-                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                     false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
-                }
-                if (!checkAuthorizationTokenIsValid.Data.Status)
-                {
-                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                  false, StatusCodes.Status401Unauthorized, "InValid token", null);
-                }
-
-                var allUsers = await _userManager.Users.ToListAsync();
-
-                var userDtos = allUsers.Select(user => new GetAllUserDto
-                {
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    Username = user.UserName,
-                    Email = user.Email,
-                    EmailConfirmed = user.EmailConfirmed
-                }).ToList();
-
-                return await _responseGeneratorService.GenerateResponseAsync(
-                  true, StatusCodes.Status200OK, "List of All Users", userDtos);
-            }
-            catch (Exception ex)
-            {
-                // Handle other exceptions
-                return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserDto>>(
-                    false, StatusCodes.Status500InternalServerError, $"An error occurred while retrieving users: {ex.Message}", null);
-            }
-        }
+       
 
         public async Task<ReturnResponse> ForgotPassword(ForgotPasswordDto forgotPasswordDto)
         {
@@ -459,5 +441,121 @@ namespace PasswordManager.Services.Admin
                 return await _responseGeneratorService.GenerateResponseAsync(false, StatusCodes.Status500InternalServerError, $"An Error Occured on SendVerificationEmailAsync : {ex.Message}");
             }
         }
+
+
+        public async Task<ReturnResponse<GetAllUserCredDto>> GetUserDetails(string authorizationToken)
+        {
+            try
+            {
+                var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
+                if (!checkAuthorizationTokenIsValid.Status)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<GetAllUserCredDto>(
+                        false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
+                }
+                if (!checkAuthorizationTokenIsValid.Data.Status)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<GetAllUserCredDto>(
+                        false, StatusCodes.Status401Unauthorized, "Invalid token", null);
+                }
+
+                var userDetail = await _userManager.Users
+                    .Where(x => x.Id == checkAuthorizationTokenIsValid.Data.UserDetails.Id)
+                    .Include(x => x.Credentials)
+                    .FirstOrDefaultAsync();
+
+                if (userDetail == null)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<GetAllUserCredDto>(
+                        false, StatusCodes.Status404NotFound, "User not found", null);
+                }
+
+                var userDto = new GetAllUserCredDto
+                {
+                    UserId = userDetail.Id,
+                    FirstName = userDetail.FirstName,
+                    LastName = userDetail.LastName,
+                    UserName = userDetail.UserName,
+                    Email = userDetail.Email,
+                    Role = userDetail.Role,
+                    CredDetails = userDetail.Credentials.Select(cred => new GetCredDetailsDto
+                    {
+                        Id = cred.Id,
+                        WebsiteName = cred.WebsiteName,
+                        Username = cred.Username,
+                        Password = cred.Password,
+                        CreatedAt = cred.CreatedAt,
+                        UpdatedAt = cred.LastUpdatedAt,
+                        LastUpdatedByUser = cred.LastUpdatedByUserId,
+                    }).ToList()
+                };
+
+                return await _responseGeneratorService.GenerateResponseAsync<GetAllUserCredDto>(
+                    true, StatusCodes.Status200OK, "User details retrieved successfully", userDto);
+            }
+            catch (Exception ex)
+            {
+                return await _responseGeneratorService.GenerateResponseAsync<GetAllUserCredDto>(
+                    false, StatusCodes.Status500InternalServerError, $"An error occurred while retrieving user details: {ex.Message}", null);
+            }
+        }
+
+
+        public async Task<ReturnResponse<List<GetAllUserCredDto>>> GetAllUserCreds(string authorizationToken)
+        {
+            try
+            {
+                var checkAuthorizationTokenIsValid = await _tokenService.DecodeToken(authorizationToken);
+                if (!checkAuthorizationTokenIsValid.Status)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserCredDto>>(
+                        false, StatusCodes.Status401Unauthorized, checkAuthorizationTokenIsValid.Message, null);
+                }
+                if (!checkAuthorizationTokenIsValid.Data.Status)
+                {
+                    return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserCredDto>>(
+                        false, StatusCodes.Status401Unauthorized, "Invalid token", null);
+                }
+
+                // Get the ID of the currently logged-in user
+                var loggedInUserId = checkAuthorizationTokenIsValid.Data.UserDetails.Id;
+
+                // Fetch all users excluding the currently logged-in user
+                var allUsers = await _userManager.Users
+                    .Where(u => u.Id != loggedInUserId)
+                    .Include(u => u.Credentials)
+                    .ToListAsync();
+
+                // Transform the data to DTO
+                var result = allUsers.Select(user => new GetAllUserCredDto
+                {
+                    UserId = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    Role = user.Role,
+                    CredDetails = user.Credentials.Select(cred => new GetCredDetailsDto
+                    {
+                        Id = cred.Id,
+                        WebsiteName = cred.WebsiteName,
+                        Username = cred.Username,
+                        Password = cred.Password,
+                        CreatedAt = cred.CreatedAt,
+                        UpdatedAt = cred.LastUpdatedAt,
+                        LastUpdatedByUser = cred.UpdatedByUser?.UserName,
+                    }).ToList()
+                }).ToList();
+
+                return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserCredDto>>(
+                    true, StatusCodes.Status200OK, "User credentials retrieved successfully", result);
+            }
+            catch (Exception ex)
+            {
+                return await _responseGeneratorService.GenerateResponseAsync<List<GetAllUserCredDto>>(
+                    false, StatusCodes.Status500InternalServerError, $"An error occurred in GetAllUserCreds(): {ex.Message}", null);
+            }
+        }
+
     }
 }

@@ -31,7 +31,7 @@ namespace PasswordManager
                     await userManager.CreateAsync(user, "Pa$$w0rd");
                 }
 
-        await context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
 
             #endregion
@@ -39,26 +39,40 @@ namespace PasswordManager
             #region Roles
 
             if (!roleManager.Roles.Any())
-{
-    // Make sure the user with AddedbyUserId exists
-    var addedByUser = userManager.Users.FirstOrDefault(x => x.UserName == "Aarshdeep.Chadha");
+            {
+                // Make sure the user with AddedbyUserId exists
+                var addedByUser = userManager.Users.FirstOrDefault(x => x.UserName == "Aarshdeep.Chadha");
 
-    if (addedByUser != null)
-    {
-        await roleManager.CreateAsync(new Role
-        {
-            Name = "Administrator",
-            Description = "Admin of the app",
-            AddedbyUserId = addedByUser.Id,
-            Status = true,
-            IsDeleted = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            isDefault = false,
-            ModifiedByUserId = addedByUser.Id
-        });
+                if (addedByUser != null)
+                {
+                    await roleManager.CreateAsync(new Role
+                    {
+                        Name = "Administrator",
+                        Description = "Admin of the app",
+                        AddedbyUserId = addedByUser.Id,
+                        Status = true,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        isDefault = false,
+                        ModifiedByUserId = addedByUser.Id
+                    });
 
-        var userrole = new List<AppUserRoles>
+                    await roleManager.CreateAsync(new Role
+                    {
+                        Name = "User",
+                        Description = "Default User of the app",
+                        AddedbyUserId = addedByUser.Id,
+                        Status = true,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        isDefault = false,
+                        ModifiedByUserId = addedByUser.Id
+                    });
+
+
+                    var userrole = new List<AppUserRoles>
                     {
                         new AppUserRoles
                         {
@@ -67,13 +81,13 @@ namespace PasswordManager
                         }
                     };
 
-        if (context.UserRoles != null)
-        {
-            await context.UserRoles.AddRangeAsync(userrole);
-            await context.SaveChangesAsync();
-        }
-    }
-}
+                    if (context.UserRoles != null)
+                    {
+                        await context.UserRoles.AddRangeAsync(userrole);
+                        await context.SaveChangesAsync();
+                    }
+                }
+            }
 
             #endregion
 

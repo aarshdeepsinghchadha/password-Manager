@@ -1,5 +1,6 @@
 ﻿using PasswordManager.Common;
 using PasswordManager.Dto;
+using PasswordManager.Dto.Admin;
 
 namespace PasswordManager.Interfaces.Admin
 {
@@ -12,8 +13,10 @@ namespace PasswordManager.Interfaces.Admin
         Task<ReturnResponse> ForgotPassword(ForgotPasswordDto forgotPasswordDto);
         Task<ReturnResponse> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
         Task<ReturnResponse> DeleteUserAsync(string authorizationToken, string userId);
-        Task<ReturnResponse<List<GetAllUserDto>>> GetAllUser(string authorizationToken);
+        Task<ReturnResponse<GetAllUserCredDto>> GetUserDetails(string authorizationToken);
 
         Task<ReturnResponse> ResendEmailVerificationLink(ResendEmailVerificationDto resendEmailVerificationLinkDto, string origin);
+
+        Task<ReturnResponse<List<GetAllUserCredDto>>> GetAllUserCreds(string authorizationToken);
     }
 }

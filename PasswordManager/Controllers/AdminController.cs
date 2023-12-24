@@ -95,12 +95,20 @@ namespace PasswordManager.Controllers
             var result = await _adminService.DeleteUserAsync(authorizationToken, id);
             return StatusCode(result.StatusCode, result);
         }
-        
+
         [Authorize]
-        [HttpGet("getAllUser")]
+        [HttpGet("getUserDetails")]
         public async Task<IActionResult> GetUser([FromHeader(Name = "Authorization")] string authorizationToken)
         {
-            var result = await _adminService.GetAllUser(authorizationToken);
+            var result = await _adminService.GetUserDetails(authorizationToken);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("getAllUserWithCreds")]
+        public async Task<IActionResult> GetAllUserWithCreds([FromHeader(Name = "Authorization")] string authorizationToken)
+        {
+            var result = await _adminService.GetAllUserCreds(authorizationToken);
             return StatusCode(result.StatusCode, result);
         }
     }
