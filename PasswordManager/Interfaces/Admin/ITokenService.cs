@@ -2,7 +2,7 @@
 using PasswordManager.Dto;
 using PasswordManager.Models;
 
-namespace PasswordManager.Interfaces
+namespace PasswordManager.Interfaces.Admin
 {
     public interface ITokenService
     {

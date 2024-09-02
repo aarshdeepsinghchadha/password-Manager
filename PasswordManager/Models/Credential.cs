@@ -26,6 +26,11 @@ namespace PasswordManager.Models
         public string Password { get; set; }
 
         // Navigation property for the related user
-        public AppUser AppUser { get; set; }
+     
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastUpdatedAt { get; set; }
+        public string? LastUpdatedByUserId { get; set; }
+        public AppUser? UpdatedByUser { get; set; }
+        public AppUser CreatedByUser { get; set; }
     }
 }

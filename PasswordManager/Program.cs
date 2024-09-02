@@ -1,12 +1,20 @@
+using log4net.Config;
+using log4net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PasswordManager;
-using PasswordManager.Interfaces;
 using PasswordManager.Models;
-using PasswordManager.Services;
 using System.Text;
+using System.Xml;
+using System.Reflection;
+using PasswordManager.Interfaces.Admin;
+using PasswordManager.Services.Admin;
+using PasswordManager.Interfaces.Credentials;
+using PasswordManager.Services.Credentials;
+using PasswordManager.Repository.Credential;
+using PasswordManager.Interfaces.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,9 +33,10 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.UseNpgsql(connectionString), ServiceLifetime.Scoped);
 
 // Add Identity
-builder.Services.AddIdentity<AppUser, IdentityRole>()
+builder.Services.AddIdentity<AppUser, Role>()
     .AddEntityFrameworkStores<DataContext>()
     .AddDefaultTokenProviders();
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -49,14 +58,31 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 });
 
+// Configure log4net
+XmlDocument log4netConfig = new XmlDocument();
+log4netConfig.Load(File.OpenRead("log4net.config"));
+var repo = log4net.LogManager.CreateRepository(
+            Assembly.GetEntryAssembly(), typeof(log4net.Repository.Hierarchy.Hierarchy));
+log4net.Config.XmlConfigurator.Configure(repo, log4netConfig["log4net"]);
+
+
+
+
 // Explicitly add UserManager and SignInManager
 builder.Services.AddScoped<UserManager<AppUser>>();
 builder.Services.AddScoped<SignInManager<AppUser>>();
+builder.Services.AddScoped<RoleManager<Role>>();
 
 builder.Services.AddScoped<IResponseGeneratorService, ResponseGeneratorService>();
+
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
+builder.Services.AddScoped<IPasswordGenerator, PasswordGenerator>();
+builder.Services.AddScoped<ICredentialService, CredentialService>();
+builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
+
+
 
 builder.Services.AddCors(opt =>
 {
@@ -71,6 +97,16 @@ builder.Services.AddCors(opt =>
 });
 
 var app = builder.Build();
+
+
+
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
+var context = services.GetRequiredService<DataContext>();
+var userManager = services.GetRequiredService<UserManager<AppUser>>();
+var roleManager = services.GetRequiredService<RoleManager<Role>>();
+await context.Database.MigrateAsync();
+await Seed.SeedData(context, userManager, roleManager);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PasswordManager.Dto;
-using PasswordManager.Interfaces;
+using PasswordManager.Interfaces.Admin;
 
 namespace PasswordManager.Controllers
 {
@@ -29,10 +29,16 @@ namespace PasswordManager.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var origin = Request.Headers["origin"];
-            var result = await _adminService.RegisterUserAsync(registerDto, origin);
-
-            return StatusCode(result.StatusCode, result);
+            string? origin = Request.Headers["origin"];
+            if (origin != null)
+            {
+                var result = await _adminService.RegisterUserAsync(registerDto, origin);
+                return StatusCode(result.StatusCode, result);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status404NotFound, "Please Pass the Origin from Headers");
+            }
         }
 
         [HttpPost("refreshToken")]
@@ -67,6 +73,21 @@ namespace PasswordManager.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpPost("resendEmailVerificationLink")]
+        public async Task<IActionResult> ResendEmailVerficationLink(ResendEmailVerificationDto resendEmailVerificationDto)
+        {
+            string? origin = Request.Headers["origin"];
+            if (origin != null)
+            {
+                var result = await _adminService.ResendEmailVerificationLink(resendEmailVerificationDto, origin);
+                return StatusCode(result.StatusCode, result);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status404NotFound, "Please Pass the Origin from Headers");
+            }
+        }
+
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser([FromHeader(Name = "Authorization")] string authorizationToken, string id)
@@ -74,12 +95,20 @@ namespace PasswordManager.Controllers
             var result = await _adminService.DeleteUserAsync(authorizationToken, id);
             return StatusCode(result.StatusCode, result);
         }
-        
+
         [Authorize]
-        [HttpGet("getAllUser")]
+        [HttpGet("getUserDetails")]
         public async Task<IActionResult> GetUser([FromHeader(Name = "Authorization")] string authorizationToken)
         {
-            var result = await _adminService.GetAllUser(authorizationToken);
+            var result = await _adminService.GetUserDetails(authorizationToken);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("getAllUserWithCreds")]
+        public async Task<IActionResult> GetAllUserWithCreds([FromHeader(Name = "Authorization")] string authorizationToken)
+        {
+            var result = await _adminService.GetAllUserCreds(authorizationToken);
             return StatusCode(result.StatusCode, result);
         }
     }
